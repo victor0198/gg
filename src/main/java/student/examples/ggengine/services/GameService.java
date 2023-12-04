@@ -3,27 +3,29 @@ package student.examples.ggengine.services;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationListener;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import student.examples.ggengine.events.StartGameEvent;
-import student.examples.ggengine.game.Game;
-import student.examples.ggengine.game.Item;
-import student.examples.ggengine.game.Rock;
+import student.examples.ggengine.events.CreateGameEvent;
+import student.examples.ggengine.events.SignInEvent;
+import student.examples.ggengine.game.*;
 
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 
 
 @Service
 @Getter
 @Setter
 @Slf4j
-public class GameService implements ApplicationListener<StartGameEvent>{
+public class GameService{
+    @Autowired
+    private MultiPlayerTeamGameFactory multiPlayerTeamGameFactory;
 
-    private Set<Game> games;
-
+    private Set<MultiPlayerTeamGame> games;
+    private Set<Player> allParticipants;
 
     public GameService(){
         init();
@@ -31,50 +33,96 @@ public class GameService implements ApplicationListener<StartGameEvent>{
 
     public void init(){
         games = new HashSet<>();
-        games.add(new Game());
-
-        Game game = games.stream().findFirst().get();
-        game.getItems().add(
-            new Rock(0,0,0,0,0,0)
-        );
+        allParticipants = new HashSet<>();
     }
 
-    @Override
-    public void onApplicationEvent(StartGameEvent event) {
-        log.info("Received start game event!");
-        addGame();
-    }
+    public void addPlayer(UUID uuid){
 
-    public void addGame(){
-        log.info("Adding game! The game list:");
-        Game newGame = new Game();
+        if(games.isEmpty()){
+            MultiPlayerTeamGame newGame = multiPlayerTeamGameFactory.createGame();
+            games.add(newGame);
+        }
 
-        Random random = new Random();
+        // adding the player to the game
+        boolean playerAdded = false;
 
-        newGame.getItems().add(new Rock(random.nextInt(100), 0,0,0,0,0));
+        Player player = null;
+        for (Player currentPlayer :
+                allParticipants) {
+            if (uuid.equals(currentPlayer.getId())) {
+                player = currentPlayer;
+            }
+        }
 
-        games.add(newGame);
+        for (MultiPlayerTeamGame game : games) {
+            if(game.getGameState().equals(GameState.PENDING)){
+                addPlayerToGame(game, player);
+                playerAdded = true;
+            }
 
-        for (Game game :
-                games) {
-            log.info(game.toString());
+            if(game.getPlayers().size()==4){
+                game.setGameState(GameState.STARTED);
+            }
+
+            log.info("Game:"+game);
+        }
+
+        if(!playerAdded){
+            MultiPlayerTeamGame newGame = multiPlayerTeamGameFactory.createGame();
+
+            addPlayerToGame(newGame, player);
+            games.add(newGame);
+
+            log.info("New Game:"+newGame);
         }
     }
 
-    @Scheduled(fixedDelay = 10)
+    private void addPlayerToGame(MultiPlayerTeamGame game, Player player) {
+
+        // get the team with the least players
+        Team smallestTeam = null;
+        for (String teamName :
+                game.getTeams().keySet()) {
+            if(smallestTeam == null ||
+                    (smallestTeam != null && smallestTeam.getParticipants().size() > game.getTeams().get(teamName).getParticipants().size())){
+
+                smallestTeam = game.getTeams().get(teamName);
+            }
+
+        }
+
+        smallestTeam.addParticipant(player);
+
+    }
+
+    @Scheduled(fixedDelay = 1000)
     public void updateFrame(){
+        if(!games.isEmpty()){
+            // update objects position
+        }
+    }
 
-        Game game = games.stream().findFirst().get();
+    @EventListener
+    public void handleGameCreationEvent(CreateGameEvent event) {
+        // Your logic to handle the event
+        System.out.println("Create game Event Received in Game Service: " + event.getSource());
+    }
 
-        Item item = game.getItems().stream().findFirst().get();
-        game.getItems().remove(item);
-        game.getItems().add(new Rock(
-                item.getSpeedX(),
-                item.getSpeedY(),
-                item.getTop(),
-                item.getLeft()+1,
-                item.getRotation(),
-                item.getRotationSpeed()
-        ));
+    @EventListener
+    public void handleSigningInEvent(SignInEvent event) {
+        // Your logic to handle the event
+        System.out.println("Sign in Event Received in Game Service: " + event.getSource());
+        UUID uuid = UUID.fromString(event.getUuidString());
+        addPlayer(uuid);
+    }
+
+    public boolean playerSigned(String uuidString) {
+        UUID uuid = UUID.fromString(uuidString);
+        for (Participant player : allParticipants) {
+            if(player.getId().equals(uuid)) {
+                return true;
+            }
+        }
+        return true;
     }
 }

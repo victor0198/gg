@@ -4,8 +4,13 @@ package student.examples.ggengine.rest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import student.examples.ggengine.events.StartGameEventPublisher;
+import student.examples.ggengine.events.SignInEventPublisher;
+import student.examples.ggengine.services.GameService;
+
+import java.util.UUID;
 
 @CrossOrigin(origins = "http://localhost:4200/")
 @RestController
@@ -13,18 +18,23 @@ import student.examples.ggengine.events.StartGameEventPublisher;
 @RequiredArgsConstructor
 @Slf4j
 public class GameController {
+
     @Autowired
-    StartGameEventPublisher startGameEventPublisher;
+    GameService gameService;
+    @Autowired
+    SignInEventPublisher signInEventPublisher;
 
-    @GetMapping("/join/{id}")
-    public Long jonGame(@PathVariable Long id){
+    @GetMapping("/join/{uuidString}")
+    public ResponseEntity<?> jonGame(@PathVariable String uuidString){
+        // join the player
+        log.info(uuidString);
+        if(!gameService.playerSigned(uuidString)){
+            return new ResponseEntity<>("{\"status\": \"failed\", \"message\": \"unauthorized game access\"}", HttpStatus.UNAUTHORIZED);
+        }
 
-        // take an ID of the player
+        signInEventPublisher.publishSigningInEvent(uuidString);
 
-        // signal the start of the new game
-        startGameEventPublisher.publishCustomEvent();
-
-        return id;
+        return new ResponseEntity<>(null, HttpStatus.OK);
     }
 
     @GetMapping("/leave/{id}")

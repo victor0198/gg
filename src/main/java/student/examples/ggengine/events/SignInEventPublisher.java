@@ -4,16 +4,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import student.examples.ggengine.game.SignUpData;
+
+import java.util.UUID;
+
 
 @Component
 @Slf4j
-public class StartGameEventPublisher {
+public class SignInEventPublisher {
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
 
-    public void publishCustomEvent() {
-        log.info("Publishing custom event..");
-        StartGameEvent customSpringEvent = new StartGameEvent(this);
-        applicationEventPublisher.publishEvent(customSpringEvent);
+    public void publishSigningInEvent(String uuidString) {
+        log.info("Publishing signing in event..");
+        SignInEvent signInEvent = new SignInEvent(this, uuidString);
+        applicationEventPublisher.publishEvent(signInEvent);
     }
 }
+

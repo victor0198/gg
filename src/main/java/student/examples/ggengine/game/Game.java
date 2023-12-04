@@ -6,12 +6,16 @@ import lombok.NoArgsConstructor;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
-@AllArgsConstructor
-@NoArgsConstructor
-@Data
-public class Game {
-    private GameState gameState = GameState.PENDING;
-    private Set<Item> items = new HashSet<>();
-//  private Set<Player> players;
+
+public interface Game {
+    Set<Item> getItems();
+
+    void setGameState(GameState gameState);
+
+    GameState getGameState();
+
+    UUID getUuid();
+
 }
